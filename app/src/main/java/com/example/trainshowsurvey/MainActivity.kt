@@ -1,0 +1,203 @@
+package com.example.trainshowsurvey
+
+import android.app.Activity
+import android.content.Intent
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.View
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.example.trainshowsurvey.data.Survey
+import com.example.trainshowsurvey.data.SurveyDatabase
+import com.google.android.material.card.MaterialCardView
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInClient
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.Scope
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.sheets.v4.Sheets
+import com.google.api.services.sheets.v4.SheetsScopes
+import com.google.api.services.sheets.v4.model.AppendValuesResponse
+import com.google.api.services.sheets.v4.model.ValueRange
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var database: SurveyDatabase
+    private lateinit var googleSignInClient: GoogleSignInClient
+    private var submitClickCounter = 0
+
+    private val spreadsheetId = "1LFA6P29Rpaxiv_8g5in4KNapD1yr6uNK5WvBJJOOi-4"
+
+    private val checkboxes by lazy {
+        listOf<CheckBox>(
+            findViewById(R.id.checkbox_facebook),
+            findViewById(R.id.checkbox_youtube),
+            findViewById(R.id.checkbox_tiktok),
+            findViewById(R.id.checkbox_flyer),
+            findViewById(R.id.checkbox_sign),
+            findViewById(R.id.checkbox_friend)
+        )
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        database = SurveyDatabase.getDatabase(this)
+
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestEmail()
+            .requestScopes(Scope(SheetsScopes.SPREADSHEETS))
+            .build()
+
+        googleSignInClient = GoogleSignIn.getClient(this, gso)
+
+        val submitButton = findViewById<Button>(R.id.submit_button)
+        val uploadButton = findViewById<Button>(R.id.upload_button)
+        val surveyCard = findViewById<MaterialCardView>(R.id.survey_card)
+        val thankYouText = findViewById<TextView>(R.id.thank_you_text)
+
+        submitButton.setOnClickListener {
+            val selectedSources = checkboxes.filter { it.isChecked }.map { it.text.toString() }
+
+            if (selectedSources.isNotEmpty()) {
+                val sourceString = selectedSources.joinToString(", ")
+                val timestamp = System.currentTimeMillis()
+
+                val survey = Survey(timestamp = timestamp, sources = sourceString)
+
+                lifecycleScope.launch {
+                    database.surveyDao().insert(survey)
+                    checkboxes.forEach { it.isChecked = false }
+
+                    // Show thank you screen
+                    surveyCard.visibility = View.INVISIBLE
+                    submitButton.visibility = View.INVISIBLE
+                    uploadButton.visibility = View.INVISIBLE
+                    thankYouText.visibility = View.VISIBLE
+
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        surveyCard.visibility = View.VISIBLE
+                        submitButton.visibility = View.VISIBLE
+                        thankYouText.visibility = View.GONE
+                    }, 2000)
+                }
+                submitClickCounter = 0 // Reset counter if a valid survey is submitted
+            } else {
+                submitClickCounter++
+                if (submitClickCounter >= 7) {
+                    uploadButton.visibility = View.VISIBLE
+                    Toast.makeText(this@MainActivity, "Upload unlocked", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        uploadButton.setOnClickListener {
+            signIn()
+            it.visibility = View.GONE
+            submitClickCounter = 0
+        }
+    }
+
+    private val signInLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            lifecycleScope.launch {
+                try {
+                    Log.d("SheetsUpload", "Sign-in successful, attempting to get account and upload.")
+                    val account = task.result
+                    val credential = GoogleAccountCredential.usingOAuth2(
+                        this@MainActivity,
+                        listOf(SheetsScopes.SPREADSHEETS)
+                    )
+                    credential.selectedAccount = account.account
+
+                    val sheetsService = Sheets.Builder(
+                        NetHttpTransport(),
+                        GsonFactory.getDefaultInstance(),
+                        credential
+                    ).setApplicationName("Hostlers Survey").build()
+
+                    uploadData(sheetsService)
+                } catch (e: Exception) {
+                    Log.e("SheetsUpload", "Error during sign-in or creating Sheets service", e)
+                    Toast.makeText(this@MainActivity, "Upload failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun signIn() {
+        Log.d("SheetsUpload", "Starting Google Sign-In flow.")
+        val signInIntent: Intent = googleSignInClient.signInIntent
+        signInLauncher.launch(signInIntent)
+    }
+
+    private suspend fun uploadData(sheetsService: Sheets) {
+        withContext(Dispatchers.IO) {
+            try {
+                val surveys = database.surveyDao().getAllSurveys()
+                if (surveys.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "No new surveys to upload.", Toast.LENGTH_SHORT).show()
+                    }
+                    return@withContext
+                }
+
+                val allOptions = listOf("Facebook", "Youtube", "TikTok", "Flyer", "Sign", "Friend/Family")
+                val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+                val values = surveys.map { survey ->
+                    val date = Date(survey.timestamp)
+                    val formattedDate = sdf.format(date)
+                    val selectedSources = survey.sources.split(", ").toSet()
+
+                    val rowData = mutableListOf<Any>(formattedDate)
+                    allOptions.forEach { option ->
+                        rowData.add(if (selectedSources.contains(option)) 1 else 0)
+                    }
+                    rowData
+                }
+
+                val body = ValueRange().setValues(values)
+                val range = "Sheet1!A2"
+
+                Log.d("SheetsUpload", "Appending ${values.size} rows to spreadsheet.")
+                val result: AppendValuesResponse = sheetsService.spreadsheets().values()
+                    .append(spreadsheetId, range, body)
+                    .setValueInputOption("USER_ENTERED")
+                    .execute()
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "${surveys.size} survey submissions uploaded.", Toast.LENGTH_SHORT).show()
+                    // Clear the local database after successful upload
+                    lifecycleScope.launch {
+                        database.surveyDao().deleteAll()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("SheetsUpload", "Error during data upload to Google Sheets", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Upload failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+}

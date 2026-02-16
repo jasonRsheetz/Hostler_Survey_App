@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Background -->
+    <path
+        android:fillColor="#3D3D3D"
+        android:pathData="M0,0h108v108h-108z" />
+
+    <!-- Outer Wheel -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,18 A36,36 0 1,1 54,90 A36,36 0 1,1 54,18 Z M54,24 A30,30 0 1,0 54,84 A30,30 0 1,0 54,24 Z" />
+
+    <!-- Hub -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,48 A6,6 0 1,1 54,60 A6,6 0 1,1 54,48 Z" />
+
+    <!-- Spokes -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:pathData="M54,24 L54,48 M54,60 L54,84 M24,54 L48,54 M60,54 L84,54 M34.3,34.3 L50,50 M58,58 L73.7,73.7 M34.3,73.7 L50,58 M58,50 L73.7,34.3" />
+</vector>
