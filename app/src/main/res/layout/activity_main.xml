@@ -14,12 +14,68 @@
         android:padding="16dp">
 
         <com.google.android.material.card.MaterialCardView
-            android:id="@+id/survey_card"
+            android:id="@+id/adult_card"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             app:cardElevation="4dp"
             app:cardUseCompatPadding="true"
             app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:gravity="center">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Adults"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="8dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/adult_decrement_button"
+                        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="-" />
+
+                    <TextView
+                        android:id="@+id/adult_count_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="1"
+                        android:padding="16dp"
+                        android:textAppearance="@style/TextAppearance.Material3.HeadlineLarge" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/adult_increment_button"
+                        style="@style/Widget.Material3.Button.IconButton.Filled.Tonal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+" />
+                </LinearLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/survey_card"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:cardElevation="4dp"
+            app:cardUseCompatPadding="true"
+            app:layout_constraintTop_toBottomOf="@id/adult_card"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
@@ -36,43 +92,49 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:text="How did you hear about the show?"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
+                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+                    android:textStyle="bold" />
 
                 <CheckBox
                     android:id="@+id/checkbox_facebook"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Facebook" />
+                    android:text="Facebook"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                 <CheckBox
                     android:id="@+id/checkbox_youtube"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Youtube" />
+                    android:text="Youtube"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                 <CheckBox
                     android:id="@+id/checkbox_tiktok"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="TikTok" />
+                    android:text="TikTok"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                 <CheckBox
                     android:id="@+id/checkbox_flyer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Flyer" />
+                    android:text="Flyer"                     android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                 <CheckBox
                     android:id="@+id/checkbox_sign"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Sign" />
+                    android:text="Sign"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                 <CheckBox
                     android:id="@+id/checkbox_friend"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Friend/Family" />
+                    android:text="Friend/Family"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -94,9 +156,9 @@
             android:layout_marginTop="8dp"
             android:text="Upload"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/submit_button"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintTop_toBottomOf="@+id/submit_button"
+            app:layout_constraintStart_toStartOf="@id/submit_button"
+            app:layout_constraintEnd_toEndOf="@id/submit_button" />
 
         <TextView
             android:id="@+id/thank_you_text"

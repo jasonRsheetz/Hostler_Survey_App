@@ -13,6 +13,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.lifecycleScope
 import com.example.trainshowsurvey.data.Survey
 import com.example.trainshowsurvey.data.SurveyDatabase
@@ -69,8 +70,24 @@ class MainActivity : AppCompatActivity() {
 
         val submitButton = findViewById<Button>(R.id.submit_button)
         val uploadButton = findViewById<Button>(R.id.upload_button)
+        val adultCard = findViewById<MaterialCardView>(R.id.adult_card)
         val surveyCard = findViewById<MaterialCardView>(R.id.survey_card)
         val thankYouText = findViewById<TextView>(R.id.thank_you_text)
+        val adultCountText = findViewById<TextView>(R.id.adult_count_text)
+        val incrementButton = findViewById<Button>(R.id.adult_increment_button)
+        val decrementButton = findViewById<Button>(R.id.adult_decrement_button)
+
+        incrementButton.setOnClickListener {
+            val currentCount = adultCountText.text.toString().toInt()
+            adultCountText.text = (currentCount + 1).toString()
+        }
+
+        decrementButton.setOnClickListener {
+            val currentCount = adultCountText.text.toString().toInt()
+            if (currentCount > 1) {
+                adultCountText.text = (currentCount - 1).toString()
+            }
+        }
 
         submitButton.setOnClickListener {
             val selectedSources = checkboxes.filter { it.isChecked }.map { it.text.toString() }
@@ -78,26 +95,30 @@ class MainActivity : AppCompatActivity() {
             if (selectedSources.isNotEmpty()) {
                 val sourceString = selectedSources.joinToString(", ")
                 val timestamp = System.currentTimeMillis()
+                val adultCount = adultCountText.text.toString().toInt()
 
-                val survey = Survey(timestamp = timestamp, sources = sourceString)
+                val survey = Survey(timestamp = timestamp, adults = adultCount, sources = sourceString)
 
                 lifecycleScope.launch {
                     database.surveyDao().insert(survey)
                     checkboxes.forEach { it.isChecked = false }
+                    adultCountText.text = "1"
 
                     // Show thank you screen
+                    adultCard.visibility = View.INVISIBLE
                     surveyCard.visibility = View.INVISIBLE
                     submitButton.visibility = View.INVISIBLE
                     uploadButton.visibility = View.INVISIBLE
                     thankYouText.visibility = View.VISIBLE
 
                     Handler(Looper.getMainLooper()).postDelayed({
+                        adultCard.visibility = View.VISIBLE
                         surveyCard.visibility = View.VISIBLE
                         submitButton.visibility = View.VISIBLE
                         thankYouText.visibility = View.GONE
                     }, 2000)
                 }
-                submitClickCounter = 0 // Reset counter if a valid survey is submitted
+                submitClickCounter = 0
             } else {
                 submitClickCounter++
                 if (submitClickCounter >= 7) {
@@ -169,7 +190,7 @@ class MainActivity : AppCompatActivity() {
                     val formattedDate = sdf.format(date)
                     val selectedSources = survey.sources.split(", ").toSet()
 
-                    val rowData = mutableListOf<Any>(formattedDate)
+                    val rowData = mutableListOf<Any>(formattedDate, survey.adults)
                     allOptions.forEach { option ->
                         rowData.add(if (selectedSources.contains(option)) 1 else 0)
                     }
@@ -179,7 +200,6 @@ class MainActivity : AppCompatActivity() {
                 val body = ValueRange().setValues(values)
                 val range = "Sheet1!A2"
 
-                Log.d("SheetsUpload", "Appending ${values.size} rows to spreadsheet.")
                 val result: AppendValuesResponse = sheetsService.spreadsheets().values()
                     .append(spreadsheetId, range, body)
                     .setValueInputOption("USER_ENTERED")
