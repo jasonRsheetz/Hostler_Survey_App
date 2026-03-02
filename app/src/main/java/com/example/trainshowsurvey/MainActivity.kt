@@ -71,60 +71,90 @@ class MainActivity : AppCompatActivity() {
         val submitButton = findViewById<Button>(R.id.submit_button)
         val uploadButton = findViewById<Button>(R.id.upload_button)
         val adultCard = findViewById<MaterialCardView>(R.id.adult_card)
+        val childCard = findViewById<MaterialCardView>(R.id.child_card)
         val surveyCard = findViewById<MaterialCardView>(R.id.survey_card)
         val thankYouText = findViewById<TextView>(R.id.thank_you_text)
         val adultCountText = findViewById<TextView>(R.id.adult_count_text)
-        val incrementButton = findViewById<Button>(R.id.adult_increment_button)
-        val decrementButton = findViewById<Button>(R.id.adult_decrement_button)
+        val adultincrementButton = findViewById<Button>(R.id.adult_increment_button)
+        val adultdecrementButton = findViewById<Button>(R.id.adult_decrement_button)
+        val childCountText = findViewById<TextView>(R.id.child_count_text)
+        val childincrementButton = findViewById<Button>(R.id.child_increment_button)
+        val childdecrementButton = findViewById<Button>(R.id.child_decrement_button)
 
-        incrementButton.setOnClickListener {
+        adultincrementButton.setOnClickListener {
             val currentCount = adultCountText.text.toString().toInt()
             adultCountText.text = (currentCount + 1).toString()
         }
 
-        decrementButton.setOnClickListener {
+        adultdecrementButton.setOnClickListener {
             val currentCount = adultCountText.text.toString().toInt()
             if (currentCount > 1) {
                 adultCountText.text = (currentCount - 1).toString()
             }
         }
 
+        childincrementButton.setOnClickListener {
+            val childcurrentCount = childCountText.text.toString().toInt()
+            childCountText.text = (childcurrentCount + 1).toString()
+        }
+
+        childdecrementButton.setOnClickListener {
+            val childcurrentCount = childCountText.text.toString().toInt()
+            if (childcurrentCount > 0) {
+                childCountText.text = (childcurrentCount - 1).toString()
+            }
+        }
+
         submitButton.setOnClickListener {
-            val selectedSources = checkboxes.filter { it.isChecked }.map { it.text.toString() }
+            try {
+                val selectedSources = checkboxes.filter { it.isChecked }.map { it.text.toString() }
 
-            if (selectedSources.isNotEmpty()) {
-                val sourceString = selectedSources.joinToString(", ")
-                val timestamp = System.currentTimeMillis()
-                val adultCount = adultCountText.text.toString().toInt()
+                if (selectedSources.isNotEmpty()) {
+                    val sourceString = selectedSources.joinToString(", ")
+                    val timestamp = System.currentTimeMillis()
+                    val adultCountValue = adultCountText.text.toString().toInt()
+                    val childCountValue = childCountText.text.toString().toInt()
 
-                val survey = Survey(timestamp = timestamp, adults = adultCount, sources = sourceString)
+                    val survey = Survey(timestamp = timestamp, adults = adultCountValue, children = childCountValue, sources = sourceString)
 
-                lifecycleScope.launch {
-                    database.surveyDao().insert(survey)
-                    checkboxes.forEach { it.isChecked = false }
-                    adultCountText.text = "1"
+                    lifecycleScope.launch {
+                        try {
+                            database.surveyDao().insert(survey)
+                            checkboxes.forEach { it.isChecked = false }
+                            adultCountText.text = "1"
+                            childCountText.text = "0"
 
-                    // Show thank you screen
-                    adultCard.visibility = View.INVISIBLE
-                    surveyCard.visibility = View.INVISIBLE
-                    submitButton.visibility = View.INVISIBLE
-                    uploadButton.visibility = View.INVISIBLE
-                    thankYouText.visibility = View.VISIBLE
+                            // Show thank you screen
+                            adultCard.visibility = View.INVISIBLE
+                            childCard.visibility = View.INVISIBLE
+                            surveyCard.visibility = View.INVISIBLE
+                            submitButton.visibility = View.INVISIBLE
+                            uploadButton.visibility = View.INVISIBLE
+                            thankYouText.visibility = View.VISIBLE
 
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        adultCard.visibility = View.VISIBLE
-                        surveyCard.visibility = View.VISIBLE
-                        submitButton.visibility = View.VISIBLE
-                        thankYouText.visibility = View.GONE
-                    }, 2000)
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                adultCard.visibility = View.VISIBLE
+                                childCard.visibility = View.VISIBLE
+                                surveyCard.visibility = View.VISIBLE
+                                submitButton.visibility = View.VISIBLE
+                                thankYouText.visibility = View.GONE
+                            }, 2000)
+                        } catch (e: Exception) {
+                            Log.e("SurveyCrash", "Database insert failed", e)
+                            Toast.makeText(this@MainActivity, "DB Error: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    submitClickCounter = 0
+                } else {
+                    submitClickCounter++
+                    if (submitClickCounter >= 7) {
+                        uploadButton.visibility = View.VISIBLE
+                        Toast.makeText(this@MainActivity, "Upload unlocked", Toast.LENGTH_SHORT).show()
+                    }
                 }
-                submitClickCounter = 0
-            } else {
-                submitClickCounter++
-                if (submitClickCounter >= 7) {
-                    uploadButton.visibility = View.VISIBLE
-                    Toast.makeText(this@MainActivity, "Upload unlocked", Toast.LENGTH_SHORT).show()
-                }
+            } catch (e: Exception) {
+                Log.e("SurveyCrash", "Submission processing failed", e)
+                Toast.makeText(this@MainActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -190,7 +220,7 @@ class MainActivity : AppCompatActivity() {
                     val formattedDate = sdf.format(date)
                     val selectedSources = survey.sources.split(", ").toSet()
 
-                    val rowData = mutableListOf<Any>(formattedDate, survey.adults)
+                    val rowData = mutableListOf<Any>(formattedDate, survey.adults, survey.children)
                     allOptions.forEach { option ->
                         rowData.add(if (selectedSources.contains(option)) 1 else 0)
                     }

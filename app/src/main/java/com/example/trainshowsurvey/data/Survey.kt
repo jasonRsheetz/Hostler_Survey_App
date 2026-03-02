@@ -12,5 +12,6 @@ data class Survey(
     val id: Int = 0,
     val timestamp: Long,
     val adults: Int,
+    val children: Int,
     val sources: String
 )
