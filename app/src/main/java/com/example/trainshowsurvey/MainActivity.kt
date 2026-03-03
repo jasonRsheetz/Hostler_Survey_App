@@ -69,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
         val submitButton = findViewById<Button>(R.id.submit_button)
+        val seedDataButton = findViewById<Button>(R.id.seed_data_button)
         val uploadButton = findViewById<Button>(R.id.upload_button)
         val adultCard = findViewById<MaterialCardView>(R.id.adult_card)
         val childCard = findViewById<MaterialCardView>(R.id.child_card)
@@ -129,16 +130,17 @@ class MainActivity : AppCompatActivity() {
                             childCard.visibility = View.INVISIBLE
                             surveyCard.visibility = View.INVISIBLE
                             submitButton.visibility = View.INVISIBLE
+                            seedDataButton.visibility = View.INVISIBLE
                             uploadButton.visibility = View.INVISIBLE
                             thankYouText.visibility = View.VISIBLE
 
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                adultCard.visibility = View.VISIBLE
-                                childCard.visibility = View.VISIBLE
-                                surveyCard.visibility = View.VISIBLE
-                                submitButton.visibility = View.VISIBLE
-                                thankYouText.visibility = View.GONE
-                            }, 2000)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        adultCard.visibility = View.VISIBLE
+                        childCard.visibility = View.VISIBLE
+                        surveyCard.visibility = View.VISIBLE
+                        submitButton.visibility = View.VISIBLE
+                        thankYouText.visibility = View.GONE
+                    }, 2000)
                         } catch (e: Exception) {
                             Log.e("SurveyCrash", "Database insert failed", e)
                             Toast.makeText(this@MainActivity, "DB Error: ${e.message}", Toast.LENGTH_LONG).show()
@@ -149,7 +151,8 @@ class MainActivity : AppCompatActivity() {
                     submitClickCounter++
                     if (submitClickCounter >= 7) {
                         uploadButton.visibility = View.VISIBLE
-                        Toast.makeText(this@MainActivity, "Upload unlocked", Toast.LENGTH_SHORT).show()
+                        seedDataButton.visibility = View.VISIBLE
+                        Toast.makeText(this@MainActivity, "Tools unlocked", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
@@ -158,9 +161,28 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        seedDataButton.setOnClickListener {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val sources = listOf("Facebook", "Youtube", "TikTok", "Flyer", "Sign", "Friend/Family")
+                repeat(10000) { i ->
+                    val survey = Survey(
+                        timestamp = System.currentTimeMillis() - (i * 1000),
+                        adults = (1..5).random(),
+                        children = (0..3).random(),
+                        sources = sources.shuffled().take((1..3).random()).joinToString(", ")
+                    )
+                    database.surveyDao().insert(survey)
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "10000 test surveys generated!", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
         uploadButton.setOnClickListener {
             signIn()
             it.visibility = View.GONE
+            seedDataButton.visibility = View.GONE
             submitClickCounter = 0
         }
     }
@@ -204,8 +226,8 @@ class MainActivity : AppCompatActivity() {
     private suspend fun uploadData(sheetsService: Sheets) {
         withContext(Dispatchers.IO) {
             try {
-                val surveys = database.surveyDao().getAllSurveys()
-                if (surveys.isEmpty()) {
+                val allSurveys = database.surveyDao().getAllSurveys()
+                if (allSurveys.isEmpty()) {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@MainActivity, "No new surveys to upload.", Toast.LENGTH_SHORT).show()
                     }
@@ -215,28 +237,36 @@ class MainActivity : AppCompatActivity() {
                 val allOptions = listOf("Facebook", "Youtube", "TikTok", "Flyer", "Sign", "Friend/Family")
                 val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
-                val values = surveys.map { survey ->
-                    val date = Date(survey.timestamp)
-                    val formattedDate = sdf.format(date)
-                    val selectedSources = survey.sources.split(", ").toSet()
+                // Chunk the data into batches of 500 to avoid API size limits
+                val batches = allSurveys.chunked(500)
+                var totalUploaded = 0
 
-                    val rowData = mutableListOf<Any>(formattedDate, survey.adults, survey.children)
-                    allOptions.forEach { option ->
-                        rowData.add(if (selectedSources.contains(option)) 1 else 0)
+                for (batch in batches) {
+                    val values = batch.map { survey ->
+                        val date = Date(survey.timestamp)
+                        val formattedDate = sdf.format(date)
+                        val selectedSources = survey.sources.split(", ").toSet()
+
+                        val rowData = mutableListOf<Any>(formattedDate, survey.adults, survey.children)
+                        allOptions.forEach { option ->
+                            rowData.add(if (selectedSources.contains(option)) 1 else 0)
+                        }
+                        rowData
                     }
-                    rowData
+
+                    val body = ValueRange().setValues(values)
+                    val range = "Sheet1!A2"
+
+                    sheetsService.spreadsheets().values()
+                        .append(spreadsheetId, range, body)
+                        .setValueInputOption("USER_ENTERED")
+                        .execute()
+                    
+                    totalUploaded += batch.size
                 }
 
-                val body = ValueRange().setValues(values)
-                val range = "Sheet1!A2"
-
-                val result: AppendValuesResponse = sheetsService.spreadsheets().values()
-                    .append(spreadsheetId, range, body)
-                    .setValueInputOption("USER_ENTERED")
-                    .execute()
-
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "${surveys.size} survey submissions uploaded.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "$totalUploaded survey submissions uploaded.", Toast.LENGTH_SHORT).show()
                     // Clear the local database after successful upload
                     lifecycleScope.launch {
                         database.surveyDao().deleteAll()
