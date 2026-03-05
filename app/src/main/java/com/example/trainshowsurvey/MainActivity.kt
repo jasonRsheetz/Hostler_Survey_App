@@ -50,6 +50,7 @@ class MainActivity : AppCompatActivity() {
             findViewById(R.id.checkbox_youtube),
             findViewById(R.id.checkbox_tiktok),
             findViewById(R.id.checkbox_flyer),
+            findViewById(R.id.checkbox_billboard),
             findViewById(R.id.checkbox_sign),
             findViewById(R.id.checkbox_friend)
         )
@@ -212,7 +213,7 @@ class MainActivity : AppCompatActivity() {
                     return@withContext
                 }
 
-                val allOptions = listOf("Facebook", "Youtube", "TikTok", "Flyer", "Sign", "Friend/Family")
+                val allOptions = listOf("Facebook", "Youtube", "TikTok", "Flyer", "Billboard", "Sign", "Friend/Family")
                 val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
                 // Chunk the data into batches of 500 to avoid API size limits
