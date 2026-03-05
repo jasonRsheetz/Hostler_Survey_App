@@ -149,7 +149,7 @@ class MainActivity : AppCompatActivity() {
                     submitClickCounter++
                     if (submitClickCounter >= 7) {
                         uploadButton.visibility = View.VISIBLE
-                        Toast.makeText(this@MainActivity, "Upload unlocked", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, "Tools unlocked", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
@@ -204,8 +204,8 @@ class MainActivity : AppCompatActivity() {
     private suspend fun uploadData(sheetsService: Sheets) {
         withContext(Dispatchers.IO) {
             try {
-                val surveys = database.surveyDao().getAllSurveys()
-                if (surveys.isEmpty()) {
+                val allSurveys = database.surveyDao().getAllSurveys()
+                if (allSurveys.isEmpty()) {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(this@MainActivity, "No new surveys to upload.", Toast.LENGTH_SHORT).show()
                     }
@@ -215,28 +215,36 @@ class MainActivity : AppCompatActivity() {
                 val allOptions = listOf("Facebook", "Youtube", "TikTok", "Flyer", "Sign", "Friend/Family")
                 val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
-                val values = surveys.map { survey ->
-                    val date = Date(survey.timestamp)
-                    val formattedDate = sdf.format(date)
-                    val selectedSources = survey.sources.split(", ").toSet()
+                // Chunk the data into batches of 500 to avoid API size limits
+                val batches = allSurveys.chunked(500)
+                var totalUploaded = 0
 
-                    val rowData = mutableListOf<Any>(formattedDate, survey.adults, survey.children)
-                    allOptions.forEach { option ->
-                        rowData.add(if (selectedSources.contains(option)) 1 else 0)
+                for (batch in batches) {
+                    val values = batch.map { survey ->
+                        val date = Date(survey.timestamp)
+                        val formattedDate = sdf.format(date)
+                        val selectedSources = survey.sources.split(", ").toSet()
+
+                        val rowData = mutableListOf<Any>(formattedDate, survey.adults, survey.children)
+                        allOptions.forEach { option ->
+                            rowData.add(if (selectedSources.contains(option)) 1 else 0)
+                        }
+                        rowData
                     }
-                    rowData
+
+                    val body = ValueRange().setValues(values)
+                    val range = "Sheet1!A2"
+
+                    sheetsService.spreadsheets().values()
+                        .append(spreadsheetId, range, body)
+                        .setValueInputOption("USER_ENTERED")
+                        .execute()
+                    
+                    totalUploaded += batch.size
                 }
 
-                val body = ValueRange().setValues(values)
-                val range = "Sheet1!A2"
-
-                val result: AppendValuesResponse = sheetsService.spreadsheets().values()
-                    .append(spreadsheetId, range, body)
-                    .setValueInputOption("USER_ENTERED")
-                    .execute()
-
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "${surveys.size} survey submissions uploaded.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "$totalUploaded survey submissions uploaded.", Toast.LENGTH_SHORT).show()
                     // Clear the local database after successful upload
                     lifecycleScope.launch {
                         database.surveyDao().deleteAll()

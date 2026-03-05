@@ -176,7 +176,8 @@
                     android:id="@+id/checkbox_flyer"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Flyer"                     android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+                    android:text="Flyer"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                 <CheckBox
                     android:id="@+id/checkbox_sign"
@@ -213,8 +214,8 @@
             android:text="Upload"
             android:visibility="gone"
             app:layout_constraintTop_toBottomOf="@+id/submit_button"
-            app:layout_constraintStart_toStartOf="@id/submit_button"
-            app:layout_constraintEnd_toEndOf="@id/submit_button" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <TextView
             android:id="@+id/thank_you_text"
