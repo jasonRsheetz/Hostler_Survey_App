@@ -180,6 +180,13 @@
                     android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                 <CheckBox
+                    android:id="@+id/checkbox_billboard"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Billboard"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+                <CheckBox
                     android:id="@+id/checkbox_sign"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
