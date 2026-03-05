@@ -69,7 +69,6 @@ class MainActivity : AppCompatActivity() {
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
         val submitButton = findViewById<Button>(R.id.submit_button)
-        val seedDataButton = findViewById<Button>(R.id.seed_data_button)
         val uploadButton = findViewById<Button>(R.id.upload_button)
         val adultCard = findViewById<MaterialCardView>(R.id.adult_card)
         val childCard = findViewById<MaterialCardView>(R.id.child_card)
@@ -130,17 +129,16 @@ class MainActivity : AppCompatActivity() {
                             childCard.visibility = View.INVISIBLE
                             surveyCard.visibility = View.INVISIBLE
                             submitButton.visibility = View.INVISIBLE
-                            seedDataButton.visibility = View.INVISIBLE
                             uploadButton.visibility = View.INVISIBLE
                             thankYouText.visibility = View.VISIBLE
 
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        adultCard.visibility = View.VISIBLE
-                        childCard.visibility = View.VISIBLE
-                        surveyCard.visibility = View.VISIBLE
-                        submitButton.visibility = View.VISIBLE
-                        thankYouText.visibility = View.GONE
-                    }, 2000)
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                adultCard.visibility = View.VISIBLE
+                                childCard.visibility = View.VISIBLE
+                                surveyCard.visibility = View.VISIBLE
+                                submitButton.visibility = View.VISIBLE
+                                thankYouText.visibility = View.GONE
+                            }, 2000)
                         } catch (e: Exception) {
                             Log.e("SurveyCrash", "Database insert failed", e)
                             Toast.makeText(this@MainActivity, "DB Error: ${e.message}", Toast.LENGTH_LONG).show()
@@ -151,7 +149,6 @@ class MainActivity : AppCompatActivity() {
                     submitClickCounter++
                     if (submitClickCounter >= 7) {
                         uploadButton.visibility = View.VISIBLE
-                        seedDataButton.visibility = View.VISIBLE
                         Toast.makeText(this@MainActivity, "Tools unlocked", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -161,28 +158,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        seedDataButton.setOnClickListener {
-            lifecycleScope.launch(Dispatchers.IO) {
-                val sources = listOf("Facebook", "Youtube", "TikTok", "Flyer", "Sign", "Friend/Family")
-                repeat(10000) { i ->
-                    val survey = Survey(
-                        timestamp = System.currentTimeMillis() - (i * 1000),
-                        adults = (1..5).random(),
-                        children = (0..3).random(),
-                        sources = sources.shuffled().take((1..3).random()).joinToString(", ")
-                    )
-                    database.surveyDao().insert(survey)
-                }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@MainActivity, "10000 test surveys generated!", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-
         uploadButton.setOnClickListener {
             signIn()
             it.visibility = View.GONE
-            seedDataButton.visibility = View.GONE
             submitClickCounter = 0
         }
     }
