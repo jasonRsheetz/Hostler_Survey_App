@@ -23,6 +23,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.sheets.v4.Sheets
@@ -42,7 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var googleSignInClient: GoogleSignInClient
     private var submitClickCounter = 0
 
-    private val spreadsheetId = "1LFA6P29Rpaxiv_8g5in4KNapD1yr6uNK5WvBJJOOi-4"
+    private val spreadsheetId = "1OBW9xOvrlnB-ByjJOYanbknsRoLW7EuYvxYvjaes5aA"
 
     private val checkboxes by lazy {
         listOf<CheckBox>(
@@ -52,7 +53,8 @@ class MainActivity : AppCompatActivity() {
             findViewById(R.id.checkbox_flyer),
             findViewById(R.id.checkbox_billboard),
             findViewById(R.id.checkbox_sign),
-            findViewById(R.id.checkbox_friend)
+            findViewById(R.id.checkbox_friend),
+            findViewById(R.id.checkbox_long_time)
         )
     }
 
@@ -213,10 +215,10 @@ class MainActivity : AppCompatActivity() {
                     return@withContext
                 }
 
-                val allOptions = listOf("Facebook", "Youtube", "TikTok", "Flyer", "Billboard", "Sign", "Friend/Family")
+                val range = "Sheet1!A2" 
+                val allOptions = listOf("Facebook", "Youtube", "TikTok", "Flyer", "Billboard", "Sign", "Friend/Family", "Long Time Attendee")
                 val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
-                // Chunk the data into batches of 500 to avoid API size limits
                 val batches = allSurveys.chunked(500)
                 var totalUploaded = 0
 
@@ -234,8 +236,7 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     val body = ValueRange().setValues(values)
-                    val range = "Sheet1!A2"
-
+                    
                     sheetsService.spreadsheets().values()
                         .append(spreadsheetId, range, body)
                         .setValueInputOption("USER_ENTERED")
@@ -246,13 +247,16 @@ class MainActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "$totalUploaded survey submissions uploaded.", Toast.LENGTH_SHORT).show()
-                    // Clear the local database after successful upload
-                    lifecycleScope.launch {
-                        database.surveyDao().deleteAll()
-                    }
+                    database.surveyDao().deleteAll()
+                }
+            } catch (e: GoogleJsonResponseException) {
+                val errorMessage = e.details?.message ?: e.message
+                Log.e("SheetsUpload", "Google API Error: $errorMessage")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Upload failed: $errorMessage", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
-                Log.e("SheetsUpload", "Error during data upload to Google Sheets", e)
+                Log.e("SheetsUpload", "Error during data upload", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Upload failed: ${e.message}", Toast.LENGTH_LONG).show()
                 }
